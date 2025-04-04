@@ -11,11 +11,16 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifdef WIN32
+#include "libfyaml.h"
+#include "fy-win.h"
+#else
 #include <sys/mman.h>
+#include <unistd.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <errno.h>

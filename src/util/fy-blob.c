@@ -9,7 +9,12 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#include "libfyaml.h"
+#include "fy-win.h"
+#else
 #include <unistd.h>
+#endif
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>

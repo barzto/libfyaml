@@ -15,7 +15,11 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
+#ifdef WIN32
+#include "fy-win.h"
+#else
 #include <unistd.h>
+#endif
 #include <limits.h>
 
 #include <libfyaml.h>
@@ -274,10 +278,16 @@ int fy_node_set_anchor_copy(struct fy_node *fyn, const char *text, size_t len)
 
 int fy_node_set_vanchorf(struct fy_node *fyn, const char *fmt, va_list ap)
 {
+	int ret = -1;
+	char* text = NULL;
 	if (!fyn || !fmt)
 		return -1;
 
-	return fy_document_set_anchor_internal(fyn->fyd, fyn, alloca_vsprintf(fmt, ap), FY_NT, FYDSAF_COPY);
+	vasprintf(&text, fmt, ap);
+	ret = fy_document_set_anchor_internal(fyn->fyd, fyn, text, FY_NT, FYDSAF_COPY);
+	if (text != NULL)
+		free(text);
+	return ret;
 }
 
 int fy_node_set_anchorf(struct fy_node *fyn, const char *fmt, ...)
@@ -912,8 +922,8 @@ struct fy_token *fy_node_non_synthesized_token(struct fy_node *fyn)
 	if (!fyt_start || !fyt_end)
 		return NULL;
 
-	s = fy_input_start(fyi) + fyt_start->handle.start_mark.input_pos;
-	e = fy_input_start(fyi) + fyt_end->handle.end_mark.input_pos;
+	s = (const char*)fy_input_start(fyi) + fyt_start->handle.start_mark.input_pos;
+	e = (const char*)fy_input_start(fyi) + fyt_end->handle.end_mark.input_pos;
 	size = (size_t)(e - s);
 
 	if (size > 0)
@@ -3944,17 +3954,17 @@ bool fy_node_is_empty(struct fy_node *fyn)
 	return true;
 }
 
-#define fy_node_walk_ctx_create_a(_max_depth, _mark) \
-	({ \
-		unsigned int __max_depth = (_max_depth); \
-		struct fy_node_walk_ctx *_ctx; \
-		\
-		_ctx = alloca(sizeof(*_ctx) + sizeof(struct fy_node *) * __max_depth); \
-		_ctx->max_depth = _max_depth; \
-		_ctx->next_slot = 0; \
-		_ctx->mark = (_mark); \
-		_ctx; \
-	})
+static inline void* fy_node_walk_ctx_create(unsigned int _max_depth, unsigned int _mark)
+{
+	unsigned int __max_depth = (_max_depth);
+	struct fy_node_walk_ctx *_ctx;
+
+	_ctx = malloc(sizeof(*_ctx) + sizeof(struct fy_node *) * __max_depth);
+	_ctx->max_depth = _max_depth;
+	_ctx->next_slot = 0;
+	_ctx->mark = (_mark);
+	return _ctx;
+}
 
 static inline void fy_node_walk_mark_start(struct fy_node_walk_ctx *ctx)
 {
@@ -4565,7 +4575,7 @@ regular_path_lookup:
 }
 
 static char *
-fy_node_get_reference_internal(struct fy_node *fyn_base, struct fy_node *fyn, bool near)
+fy_node_get_reference_internal(struct fy_node *fyn_base, struct fy_node *fyn, bool is_near)
 {
 	struct fy_anchor *fya;
 	const char *path;
@@ -4591,7 +4601,7 @@ fy_node_get_reference_internal(struct fy_node *fyn_base, struct fy_node *fyn, bo
 	} else {
 
 		fya = fyn_base ? fy_node_get_anchor(fyn_base) : NULL;
-		if (!fya && near)
+		if (!fya && is_near)
 			fya = fy_node_get_nearest_anchor(fyn);
 		if (!fya) {
 			/* no anchor, direct reference (ie return *\/foo\/bar */
@@ -4699,6 +4709,7 @@ bool fy_check_ref_loop(struct fy_document *fyd, struct fy_node *fyn,
 	struct fy_node *fyni;
 	struct fy_node_pair *fynp, *fynpi;
 	struct fy_node_walk_ctx *ctxn;
+	bool ctxn_allocated = false;
 	bool ret;
 
 	if (!fyn)
@@ -4722,9 +4733,11 @@ bool fy_check_ref_loop(struct fy_document *fyd, struct fy_node *fyn,
 			break;
 
 		ctxn = ctx;
-		if (!ctxn)
-			ctxn = fy_node_walk_ctx_create_a(
+		if (!ctxn) {
+			ctxn_allocated = true;
+			ctxn = fy_node_walk_ctx_create(
 				fy_node_walk_max_depth_from_flags(flags), FYNWF_REF_MARKER);
+		}
 
 
 		if (!ctx) {
@@ -4774,6 +4787,9 @@ bool fy_check_ref_loop(struct fy_document *fyd, struct fy_node *fyn,
 
 	/* mark as visited */
 	fyn->marks |= FY_BIT(FYNWF_VISIT_MARKER);
+
+	if (ctxn_allocated)
+		free(ctxn);
 
 	return ret;
 }
@@ -5018,12 +5034,11 @@ char *fy_node_get_short_path(struct fy_node *fyn)
 		return NULL;
 
 	if (fyn_anchor == fyn)
-		str = alloca_sprintf("*%.*s", (int)len, text);
+		asprintf(&path, "*%.*s", (int)len, text);
 	else
-		str = alloca_sprintf("*%.*s/%s", (int)len, text,
+		asprintf(&path, "*%.*s/%s", (int)len, text,
 				fy_node_get_path_relative_to_alloca(fyn_anchor, fyn));
 
-	path = strdup(str);
 	return path;
 }
 
@@ -5324,10 +5339,18 @@ struct fy_node *fy_node_create_alias_copy(struct fy_document *fyd, const char *d
 
 struct fy_node *fy_node_create_vscalarf(struct fy_document *fyd, const char *fmt, va_list ap)
 {
+	struct fy_node * ret = NULL;
+	char* data = NULL;
+
 	if (!fyd || !fmt)
 		return NULL;
 
-	return fy_node_create_scalar_internal(fyd, alloca_vsprintf(fmt, ap), FY_NT, FYNCSIF_COPY);
+
+
+	vasprintf(&data, fmt, ap);
+	ret = fy_node_create_scalar_internal(fyd, data, FY_NT, FYNCSIF_COPY);
+	free(data);
+	return ret;
 }
 
 struct fy_node *fy_node_create_scalarf(struct fy_document *fyd, const char *fmt, ...)
@@ -5867,7 +5890,7 @@ void fy_node_mapping_perform_sort(struct fy_node *fyn_map,
 		def_arg.cmp_fn = NULL;
 		def_arg.arg = NULL;
 	}
-	ctx.key_cmp = key_cmp ? : fy_node_mapping_sort_cmp_default;
+	ctx.key_cmp = key_cmp ? key_cmp : fy_node_mapping_sort_cmp_default;
 	ctx.arg = key_cmp ? arg : &def_arg;
 	ctx.fynpp = fynpp;
 	ctx.count = count;

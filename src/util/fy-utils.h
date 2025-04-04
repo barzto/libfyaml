@@ -15,8 +15,13 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#ifdef WIN32
+#include "libfyaml.h"
+#include "fy-win.h"
+#else
 #include <unistd.h>
 #include <termios.h>
+#endif
 #include <stdint.h>
 
 /* to avoid dragging in libfyaml.h */
@@ -117,7 +122,9 @@ int fy_comment_iter_begin(const char *comment, size_t size, struct fy_comment_it
 const char *fy_comment_iter_next_line(struct fy_comment_iter *iter, size_t *lenp);
 void fy_comment_iter_end(struct fy_comment_iter *iter);
 
+#ifndef WIN32
 char *fy_get_cooked_comment(const char *raw_comment, size_t size);
+#endif
 
 struct fy_keyword_iter {
 	const char *keyword;

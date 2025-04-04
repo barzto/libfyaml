@@ -15,7 +15,11 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
+#ifdef WIN32
+#include "fy-win.h"
+#else
 #include <unistd.h>
+#endif
 #include <math.h>
 #include <limits.h>
 

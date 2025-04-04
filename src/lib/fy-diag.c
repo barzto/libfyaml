@@ -17,7 +17,12 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdarg.h>
+#ifdef WIN32
+#include "libfyaml.h"
+#include "fy-win.h"
+#else
 #include <unistd.h>
+#endif
 #include <ctype.h>
 
 #include <libfyaml.h>
@@ -455,7 +460,7 @@ int fy_vdiag(struct fy_diag *diag, const struct fy_diag_ctx *fydc,
 		goto out;
 	}
 
-	msg = alloca_vsprintf(fmt, ap);
+	vasprintf(&msg, fmt, ap);
 
 	/* source part */
 	if (diag->cfg.show_source) {
@@ -467,21 +472,21 @@ int fy_vdiag(struct fy_diag *diag, const struct fy_diag_ctx *fydc,
 				file_stripped++;
 		} else
 			file_stripped = "";
-		source = alloca_sprintf("%s:%d @%s()%s",
+		asprintf(&source, "%s:%d @%s()%s",
 				file_stripped, fydc->source_line, fydc->source_func, " ");
 	}
 
 	/* position part */
 	if (diag->cfg.show_position && fydc->line >= 0 && fydc->column >= 0)
-		position = alloca_sprintf("<%3d:%2d>%s", fydc->line, fydc->column, ": ");
+		asprintf(&position, "<%3d:%2d>%s", fydc->line, fydc->column, ": ");
 
 	/* type part */
 	if (diag->cfg.show_type)
-		typestr = alloca_sprintf("[%s]%s", fy_error_level_str(level), ": ");
+		asprintf(&typestr, "[%s]%s", fy_error_level_str(level), ": ");
 
 	/* module part */
 	if (diag->cfg.show_module)
-		modulestr = alloca_sprintf("<%s>%s", fy_error_module_str(fydc->module), ": ");
+		asprintf(&modulestr, "<%s>%s", fy_error_module_str(fydc->module), ": ");
 
 	if (diag->cfg.colorize) {
 		switch (level) {
@@ -508,16 +513,28 @@ int fy_vdiag(struct fy_diag *diag, const struct fy_diag_ctx *fydc,
 	}
 
 	rc = fy_diag_printf(diag, "%s" "%*s" "%*s" "%*s" "%*s" "%s" "%s\n",
-			color_start ? : "",
-			source    ? diag->cfg.source_width : 0, source ? : "",
-			position  ? diag->cfg.position_width : 0, position ? : "",
-			typestr   ? diag->cfg.type_width : 0, typestr ? : "",
-			modulestr ? diag->cfg.module_width : 0, modulestr ? : "",
+			color_start ? color_start : "",
+			source    ? diag->cfg.source_width : 0, source ? source : "",
+			position  ? diag->cfg.position_width : 0, position ? position : "",
+			typestr   ? diag->cfg.type_width : 0, typestr ? typestr : "",
+			modulestr ? diag->cfg.module_width : 0, modulestr ? modulestr : "",
 			msg,
-			color_end ? : "");
+			color_end ? color_end : "");
+
 
 	if (rc > 0)
 		rc++;
+
+	if (msg != NULL)
+		free(msg);
+	if (source != NULL)
+		free(source);
+	if (position != NULL)
+		free(position);
+	if (typestr != NULL)
+		free(typestr);
+	if (modulestr != NULL)
+		free(modulestr);
 
 out:
 	/* if it's the first error we're generating set the
@@ -843,19 +860,21 @@ void fy_diag_vreport(struct fy_diag *diag,
 	}
 
 	/* it will strip trailing newlines */
-	msg_str = alloca_vsprintf(fmt, ap);
+	 vasprintf(&msg_str, fmt, ap);
 
 	/* get the colors */
 	fy_diag_get_error_colors(diag, fydrc->type, &color_start, &color_end, &white);
 
-	if (name || (line > 0 && column > 0))
-		name_str = (line > 0 && column > 0) ?
-			alloca_sprintf("%s%s:%d:%d: ", white, name, line, column) :
-			alloca_sprintf("%s%s: ", white, name);
+	if (name || (line > 0 && column > 0)) {
+		if (line > 0 && column > 0)
+			asprintf(&name_str, "%s%s:%d:%d: ", white, name, line, column);
+		else
+			asprintf(&name_str, "%s%s: ", white, name);
+	}
 
 	if (!diag->collect_errors) {
 		fy_diag_printf(diag, "%s" "%s%s: %s" "%s\n",
-			name_str ? : "",
+			name_str ? name_str : "",
 			color_start, fy_error_type_to_string(fydrc->type), color_end,
 			msg_str);
 
@@ -893,6 +912,10 @@ void fy_diag_vreport(struct fy_diag *diag,
 		fy_diag_errorp_list_add_tail(&diag->errors, errp);
 	}
 out:
+	if (name_str != NULL)
+		free(name_str);
+	if (msg_str != NULL)
+		free(msg_str);
 	if (!diag->on_error && fydrc->type == FYET_ERROR)
 		diag->on_error = true;
 }

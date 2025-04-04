@@ -252,9 +252,9 @@ static inline bool fy_is_flow_ws_m(int c, enum fy_flow_ws_mode fws_mode)
 static inline const void * \
 fy_find_ ## _kind (const void *s, size_t len) \
 { \
-	const void *e = s + len; \
+	const char *e = (const char*)s + len; \
 	int c, w; \
-	for (; s < e && (c = fy_utf8_get(s,  e - s, &w)) >= 0; s += w) { \
+	for (; s < e && (c = fy_utf8_get(s,  e - (const char*)s, &w)) >= 0; s = (const char*)s + w) { \
 		assert(w); \
 		if (fy_is_ ## _kind (c)) \
 			return s; \
@@ -264,9 +264,9 @@ fy_find_ ## _kind (const void *s, size_t len) \
 static inline const void * \
 fy_find_non_ ## _kind (const void *s, size_t len) \
 { \
-	const void *e = s + len; \
+	const char *e = (const char*)s + len; \
 	int c, w; \
-	for (; s < e && (c = fy_utf8_get(s,  e - s, &w)) >= 0; s += w) { \
+	for (; s < e && (c = fy_utf8_get(s,  e - (const char*)s, &w)) >= 0; s = (const char*)s + w) { \
 		assert(w); \
 		if (!(fy_is_ ## _kind (c))) \
 			return s; \
@@ -324,7 +324,7 @@ static inline const void *fy_skip_lb(const void *ptr, size_t left)
 	if (c == '\r' && left > (size_t)width && *(char *)ptr == '\n')
 		width++;
 
-	return ptr + width;
+	return (const char*)ptr + width;
 }
 
 /* given a pointer to a chunk of memory, return pointer to first

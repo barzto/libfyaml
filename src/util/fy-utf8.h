@@ -15,7 +15,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
+#ifdef WIN32
+#include "fy-win.h"
+#else
 #include <alloca.h>
+#endif
 
 #include "fy-utils.h"
 
@@ -89,7 +93,7 @@ int fy_utf8_get_right_generic(const void *ptr, size_t left, int *widthp);
 
 static inline int fy_utf8_get_right(const void *ptr, size_t left, int *widthp)
 {
-	const uint8_t *p = ptr + left;
+	const uint8_t *p = (uint8_t *)ptr + left;
 
 	/* single byte (hot path) */
 	if (left > 0 && !(p[-1] & 0x80)) {
@@ -150,11 +154,11 @@ static inline bool fy_utf8_escape_is_any_doublequote(enum fy_utf8_escape esc)
 
 char *fy_utf8_format(int c, char *buf, enum fy_utf8_escape esc);
 
-#define fy_utf8_format_a(_c, _esc) \
-	({ \
-	 	char *_buf = alloca(FY_UTF8_FORMAT_BUFMIN); \
-	 	fy_utf8_format((_c), _buf, _esc); \
-	})
+static inline char * fy_utf8_format_a(int _c, enum fy_utf8_escape _esc)
+{
+	char *_buf = alloca(FY_UTF8_FORMAT_BUFMIN);
+	return fy_utf8_format((_c), _buf, _esc);
+}
 
 size_t fy_utf8_format_text_length(const char *buf, size_t len,
 			          enum fy_utf8_escape esc);
@@ -162,15 +166,15 @@ char *fy_utf8_format_text(const char *buf, size_t len,
 			  char *out, size_t maxsz,
 			  enum fy_utf8_escape esc);
 
-#define fy_utf8_format_text_a(_buf, _len, _esc) \
-	({ \
-		const char *__buf = (_buf); \
-		size_t __len = (_len); \
-		enum fy_utf8_escape __esc = (_esc); \
-		size_t _outsz = fy_utf8_format_text_length(__buf, __len, __esc); \
-		char *_out = alloca(_outsz + 1); \
-		fy_utf8_format_text(__buf, __len, _out, _outsz, __esc); \
-	})
+static inline const char* fy_utf8_format_text_a(const char* _buf, size_t _len, enum fy_utf8_escape _esc)
+{
+	const char *__buf = (_buf);
+	size_t __len = (_len);
+	enum fy_utf8_escape __esc = (_esc);
+	size_t _outsz = fy_utf8_format_text_length(__buf, __len, __esc);
+	char *_out = alloca(_outsz + 1);
+	return fy_utf8_format_text(__buf, __len, _out, _outsz, __esc);
+}
 
 char *fy_utf8_format_text_alloc(const char *buf, size_t len, enum fy_utf8_escape esc);
 
@@ -196,7 +200,7 @@ static inline const void *fy_utf8_strchr(const void *s, int c)
 
 static inline int fy_utf8_count(const void *ptr, size_t len)
 {
-	const uint8_t *s = ptr, *e = ptr + len;
+	const uint8_t *s = ptr, *e = (const uint8_t *)ptr + len;
 	int w, count;
 
 	count = 0;

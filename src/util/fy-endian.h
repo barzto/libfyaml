@@ -16,9 +16,14 @@
 #elif defined(__NetBSD__) || defined(__FreeBSD__) || defined(__DragonFly__)
 # include <sys/endian.h>
 #elif defined(_MSC_VER)
-# include <winsock2.h>
+//# include <winsock2.h>
 # ifdef __GNUC__
 #  include <sys/param.h>
+# else
+#  define LITTLE_ENDIAN 0x41424344UL
+#  define BIG_ENDIAN    0x44434241UL
+#  define PDP_ENDIAN    0x42414443UL
+#  define BYTE_ORDER  ('ABCD')
 # endif
 #else
 # error unsupported platform

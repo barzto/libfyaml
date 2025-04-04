@@ -14,7 +14,15 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <limits.h>
+#ifdef WIN32
+#include "fy-win.h"
+
+#define STDOUT_FILENO _fileno(stdout)
+#define STDERR_FILENO _fileno(stderr)
+
+#else
 #include <unistd.h>
+#endif
 #include <ctype.h>
 #include <errno.h>
 
@@ -47,7 +55,7 @@ static inline void fy_emit_token_unref(struct fy_emitter *emit, struct fy_parser
 /* fwd decl */
 void fy_emit_write(struct fy_emitter *emit, enum fy_emitter_write_type type, const char *str, int len);
 void fy_emit_printf(struct fy_emitter *emit, enum fy_emitter_write_type type, const char *fmt, ...)
-		__attribute__((format(printf, 3, 4)));
+FY_FORMAT(printf, 3, 4);
 
 static inline bool fy_emit_is_json_mode(const struct fy_emitter *emit)
 {
@@ -1900,7 +1908,7 @@ int fy_emit_document_start(struct fy_emitter *emit, struct fy_document *fyd,
 	if (!emit || !fyd || !fyd->fyds)
 		return -1;
 
-	root = fyn_root ? : fy_document_root(fyd);
+	root = fyn_root ? fyn_root : fy_document_root(fyd);
 
 	root_tag_or_anchor = root && (root->tag || fy_document_lookup_anchor_by_node(fyd, root));
 

@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #include <libfyaml.h>
 

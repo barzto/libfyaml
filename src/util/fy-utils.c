@@ -15,10 +15,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifdef WIN32
+#include "libfyaml.h"
+#include "fy-win.h"
+#else
 #include <termios.h>
 #include <unistd.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#endif
 #include <sys/types.h>
 #include <ctype.h>
 
@@ -404,6 +409,9 @@ int fy_tag_scan(const char *data, size_t len, struct fy_tag_scan_info *info)
 /* simple terminal methods; mainly for getting size of terminal */
 int fy_term_set_raw(int fd, struct termios *oldt)
 {
+#ifdef WIN32
+	return -1;
+#else
 	struct termios newt, t;
 	int ret;
 
@@ -418,7 +426,7 @@ int fy_term_set_raw(int fd, struct termios *oldt)
 	newt = t;
 
 	cfmakeraw(&newt);
-    
+
 	ret = tcsetattr(fd, TCSANOW, &newt);
 	if (ret != 0)
 		return ret;
@@ -427,15 +435,20 @@ int fy_term_set_raw(int fd, struct termios *oldt)
 		*oldt = t;
 
 	return 0;
+#endif
 }
 
 int fy_term_restore(int fd, const struct termios *oldt)
 {
+#ifdef WIN32
+	return -1;
+#else
 	/* must be a terminal */
 	if (!isatty(fd))
 		return -1;
 
 	return tcsetattr(fd, TCSANOW, oldt);
+#endif
 }
 
 ssize_t fy_term_write(int fd, const void *data, size_t count)
@@ -453,7 +466,7 @@ ssize_t fy_term_write(int fd, const void *data, size_t count)
 		if (r < 0)
 			break;
 		wrn += r;
-		data += r;
+		data = (const char*)data + r;
 		count -= r;
 	}
 
@@ -471,6 +484,9 @@ int fy_term_safe_write(int fd, const void *data, size_t count)
 
 ssize_t fy_term_read(int fd, void *data, size_t count, int timeout_us)
 {
+#ifdef WIN32
+	return -1;
+#else
 	ssize_t rdn, r;
 	struct timeval tv, tvto, *tvp;
 	fd_set rdfds;
@@ -519,6 +535,7 @@ ssize_t fy_term_read(int fd, void *data, size_t count, int timeout_us)
 
 	/* return the amount written, or the last error code */
 	return rdn > 0 ? rdn : r;
+#endif
 }
 
 ssize_t fy_term_read_escape(int fd, void *buf, size_t count)
@@ -618,6 +635,9 @@ int fy_term_query_size_raw(int fd, int *rows, int *cols)
 
 int fy_term_query_size(int fd, int *rows, int *cols)
 {
+#ifdef WIN32
+	return -1;
+#else
 	struct termios old_term;
 	int ret, r;
 
@@ -635,6 +655,7 @@ int fy_term_query_size(int fd, int *rows, int *cols)
 		return -1;
 
 	return ret;
+#endif
 }
 
 int fy_comment_iter_begin(const char *comment, size_t size, struct fy_comment_iter *iter)
@@ -730,6 +751,7 @@ void fy_comment_iter_end(struct fy_comment_iter *iter)
 	/* nothing */
 }
 
+#ifndef WIN32
 char *fy_get_cooked_comment(const char *raw_comment, size_t size)
 {
 	struct fy_comment_iter iter;
@@ -766,6 +788,7 @@ char *fy_get_cooked_comment(const char *raw_comment, size_t size)
 	/* must be freed */
 	return buf;
 }
+#endif
 
 int fy_keyword_iter_begin(const char *text, size_t size, const char *keyword, struct fy_keyword_iter *iter)
 {

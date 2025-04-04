@@ -11,12 +11,16 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifdef _WIN32
+#include "fy-win.h"
+#else
 #include <sys/mman.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -6876,7 +6880,7 @@ int fy_parser_set_input_fp(struct fy_parser *fyp, const char *name, FILE *fp)
 	memset(&fyic, 0, sizeof(fyic));
 
 	fyic.type = fyit_stream;
-	fyic.stream.name = name ? : "<stream>";
+	fyic.stream.name = name ? name : "<stream>";
 	fyic.stream.fp = fp;
 	fyic.ignore_stdio = !!(fyp->cfg.flags & FYPCF_DISABLE_BUFFERING);
 

@@ -42,9 +42,22 @@ extern "C" {
 
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
 #include <unistd.h>
+#include <sys/uio.h>
+#else
+typedef int ssize_t;
+#define SSIZE_MAX INT_MAX
+
+#ifdef _MSC_VER
+#include <malloc.h>
+#include <io.h>
+#include <stdio.h>
+#define alloca _alloca
+#define isatty _isatty
+#define typeof __typeof__
 #endif
 
-#include <sys/uio.h>
+#endif
+
 
 /* opaque types for the user */
 struct fy_token;
@@ -89,34 +102,26 @@ struct fy_document_builder;
  * If the _str pointer is NULL, then NULL will be returned
  */
 #ifndef FY_ALLOCA_COPY_FREE
-#define FY_ALLOCA_COPY_FREE(_str, _len)				\
-        ({							\
-                char *__str = (_str), *__stra = NULL;		\
-                size_t __len = (size_t)(_len);			\
-								\
-		if (__str) {					\
-			if (__len == FY_NT) 			\
-				__len = strlen(__str);		\
-			__stra = alloca(__len + 1);		\
-			memcpy(__stra, __str, __len);		\
-			__stra[__len] = '\0';			\
-			free(__str);				\
-		}						\
-                (const char *)__stra;				\
-        })
+
+static inline const char* fy_copy_free_helper(const char* source, size_t len, char* dest) {
+	if (source == NULL)
+		return NULL;
+	memcpy(dest, source, len);
+	dest[len] = '\0';
+	return dest;
+}
+
+#define FY_ALLOCA_COPY_FREE(_str, _len) \
+fy_copy_free_helper(\
+	_str, \
+	_len == FY_NT ? strlen(_str) : _len, \
+	alloca((_len == FY_NT ? strlen(_str) : _len) + 1)\
+)
 #endif
 
 /* same as above but when _str == NULL return "" */
 #ifndef FY_ALLOCA_COPY_FREE_NO_NULL
-#define FY_ALLOCA_COPY_FREE_NO_NULL(_str, _len)			\
-        ({							\
-                const char *__strb;				\
-								\
-		__strb = FY_ALLOCA_COPY_FREE(_str, _len);	\
-		if (!__strb)					\
-			__strb = "";				\
-		__strb;						\
-        })
+#define FY_ALLOCA_COPY_FREE_NO_NULL(_str, _len) _str == NULL ? "" : FY_ALLOCA_COPY_FREE(_str, _len)
 #endif
 
 /**
@@ -938,6 +943,8 @@ int
 fy_parser_set_input_fp(struct fy_parser *fyp, const char *name, FILE *fp)
 	FY_EXPORT;
 
+
+typedef ssize_t (*callback)(void *user, void *buf, size_t count);
 /**
  * fy_parser_set_input_callback() - Set the parser to process via a callback
  *
@@ -5725,8 +5732,9 @@ fy_diagf(struct fy_diag *diag, const struct fy_diag_ctx *fydc,
 	FY_FORMAT(printf, 3, 4)
 	FY_EXPORT;
 
+
 #define fy_diag_diag(_diag, _level, _fmt, ...) \
-	({ \
+	do { \
 		struct fy_diag_ctx _ctx = { \
 			.level = (_level), \
 			.module = FYEM_UNKNOWN, \
@@ -5738,7 +5746,7 @@ fy_diagf(struct fy_diag *diag, const struct fy_diag_ctx *fydc,
 			.column = 0, \
 		}; \
 		fy_diagf((_diag), &_ctx, (_fmt) , ## __VA_ARGS__); \
-	})
+	} while (0);
 
 #ifndef NDEBUG
 

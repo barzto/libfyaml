@@ -131,7 +131,7 @@ struct fy_utf8_fmt_esc_map {
 };
 
 static const struct fy_utf8_fmt_esc_map esc_all = {
-	.ch  = (const int []){ '\\', '\0', '\b', '\r', '\t', '\f', '\n', '\v', '\a', '\e', 0x85, 0xa0, 0x2028, 0x2029, -1 },
+	.ch  = (const int []){ '\\', '\0', '\b', '\r', '\t', '\f', '\n', '\v', '\a', 0x1b, 0x85, 0xa0, 0x2028, 0x2029, -1 },
 	.map = (const int []){ '\\',  '0',  'b',  'r',  't',  'f',  'n',  'v',  'a',  'e',  'N',  '_',    'L',    'P',  0 }
 };
 
@@ -255,13 +255,13 @@ char *fy_utf8_format_text_alloc(const char *buf, size_t len, enum fy_utf8_escape
 const void *fy_utf8_memchr_generic(const void *s, int c, size_t n)
 {
 	int cc, w;
-	const void *e;
+	const char *e;
 
-	e = s + n;
-	while (s < e && (cc = fy_utf8_get(s, e - s, &w)) >= 0) {
+	e = (const char*)s + n;
+	while (s < e && (cc = fy_utf8_get(s, e - (const char*)s, &w)) >= 0) {
 		if (c == cc)
 			return s;
-		s += w;
+		s = (const char*)s + w;
 	}
 
 	return NULL;
@@ -982,7 +982,7 @@ void *fy_utf8_split_posix(const char *str, int *argcp, const char * const *argvp
 		return NULL;
 
 	tmpargv = mem;
-	tmparg = mem + (argv_count + 1) * sizeof(*tmpargv);
+	tmparg = (char*)mem + (argv_count + 1) * sizeof(*tmpargv);
 	for (i = 0; i < argv_count; i++) {
 		tmpargv[i] = tmparg;
 		strcpy(tmparg, argv[i]);
@@ -1008,7 +1008,7 @@ int fy_utf8_get_generic_s(const void *ptr, const void *ptr_end, int *widthp)
 	width = fy_utf8_width_by_first_octet(p[0]);
 	if (!width)
 		return FYUG_INV;
-	if (ptr + width > ptr_end)
+	if ((const char*)ptr + width > ptr_end)
 		return FYUG_PARTIAL;
 
 	/* initial value */

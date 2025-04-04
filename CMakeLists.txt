@@ -5,7 +5,7 @@ endif()
 # version number below should be the currently under development version,
 # so when doing a tag/release it is captured with the proper numbering.
 project(fyaml LANGUAGES C VERSION 0.7.2)
-
+set(CMAKE_C_STANDARD 23)
 cmake_minimum_required(VERSION 3.0)
 
 # Must use GNUInstallDirs to install libraries into correct
@@ -61,9 +61,25 @@ set(LIBSRCS
   src/util/fy-utils.c
   src/xxhash/xxhash.c
 )
+
+if (WIN32)
+	set(LIBHDRS
+		${LIBHDRS}
+		src/lib/fy-win.h
+		src/lib/fy-win-mmap.h
+	)
+	set(LIBSRCS
+		${LIBSRCS}
+		src/lib/fy-win.c
+		src/lib/fy-win-mmap.c
+	)
+endif ()
+
 set(LIBHDRSPUB
     include/libfyaml.h
 )
+
+
 
 add_library(${PROJECT_NAME}
     ${LIBHDRS}
@@ -81,6 +97,7 @@ check_function_exists(__builtin_bswap64 HAVE___BUILTIN_BSWAP64)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "Libraries")
+set_target_properties(${PROJECT_NAME} PROPERTIES C_STANDARD 23)
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC

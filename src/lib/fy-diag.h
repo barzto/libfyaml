@@ -98,7 +98,7 @@ void fy_diag_vreport(struct fy_diag *diag,
 void fy_diag_report(struct fy_diag *diag,
 		    const struct fy_diag_report_ctx *fydrc,
 		    const char *fmt, ...)
-			__attribute__((format(printf, 3, 4)));
+			FY_FORMAT(printf, 3, 4);
 
 #ifdef FY_DEVMODE
 #define __FY_DEBUG_UNUSED__	/* nothing */
@@ -122,7 +122,7 @@ int fy_parser_vdiag(struct fy_parser *fyp, unsigned int flags,
 int fy_parser_diag(struct fy_parser *fyp, unsigned int flags,
 		   const char *file, int line, const char *func,
 		   const char *fmt, ...)
-			__attribute__((format(printf, 6, 7)));
+			FY_FORMAT(printf, 6, 7);
 
 void fy_diag_error_atom_display(struct fy_diag *diag, enum fy_error_type type,
 				 struct fy_atom *atom);
@@ -135,7 +135,7 @@ void fy_parser_diag_vreport(struct fy_parser *fyp,
 void fy_parser_diag_report(struct fy_parser *fyp,
 			   const struct fy_diag_report_ctx *fydrc,
 			   const char *fmt, ...)
-		__attribute__((format(printf, 3, 4)));
+		FY_FORMAT(printf, 3, 4);
 
 #ifdef FY_DEVMODE
 
@@ -275,7 +275,7 @@ int fy_reader_vdiag(struct fy_reader *fyr, unsigned int flags,
 int fy_reader_diag(struct fy_reader *fyr, unsigned int flags,
 		   const char *file, int line, const char *func,
 		   const char *fmt, ...)
-			__attribute__((format(printf, 6, 7)));
+			FY_FORMAT(printf, 6, 7);
 
 void fy_reader_diag_vreport(struct fy_reader *fyr,
 			    const struct fy_diag_report_ctx *fydrc,
@@ -283,7 +283,7 @@ void fy_reader_diag_vreport(struct fy_reader *fyr,
 void fy_reader_diag_report(struct fy_reader *fyr,
 			   const struct fy_diag_report_ctx *fydrc,
 			   const char *fmt, ...)
-		__attribute__((format(printf, 3, 4)));
+		FY_FORMAT(printf, 3, 4);
 
 #ifdef FY_DEVMODE
 
@@ -415,7 +415,7 @@ int fy_document_vdiag(struct fy_document *fyd, unsigned int flags,
 int fy_document_diag(struct fy_document *fyd, unsigned int flags,
 		     const char *file, int line, const char *func,
 		     const char *fmt, ...)
-			__attribute__((format(printf, 6, 7)));
+			FY_FORMAT(printf, 6, 7);
 
 void fy_document_diag_vreport(struct fy_document *fyd,
 			      const struct fy_diag_report_ctx *fydrc,
@@ -423,7 +423,7 @@ void fy_document_diag_vreport(struct fy_document *fyd,
 void fy_document_diag_report(struct fy_document *fyd,
 			     const struct fy_diag_report_ctx *fydrc,
 			     const char *fmt, ...)
-			__attribute__((format(printf, 3, 4)));
+			FY_FORMAT(printf, 3, 4);
 
 #ifdef FY_DEVMODE
 
@@ -517,7 +517,7 @@ int fy_composer_vdiag(struct fy_composer *fyc, unsigned int flags,
 int fy_composer_diag(struct fy_composer *fyc, unsigned int flags,
 		     const char *file, int line, const char *func,
 		     const char *fmt, ...)
-			__attribute__((format(printf, 6, 7)));
+			FY_FORMAT(printf, 6, 7);
 
 void fy_composer_diag_vreport(struct fy_composer *fyc,
 			      const struct fy_diag_report_ctx *fydrc,
@@ -525,7 +525,7 @@ void fy_composer_diag_vreport(struct fy_composer *fyc,
 void fy_composer_diag_report(struct fy_composer *fyc,
 			     const struct fy_diag_report_ctx *fydrc,
 			     const char *fmt, ...)
-			__attribute__((format(printf, 3, 4)));
+			FY_FORMAT(printf, 3, 4);
 
 #ifdef FY_DEVMODE
 
@@ -602,7 +602,7 @@ int fy_document_builder_vdiag(struct fy_document_builder *fydb, unsigned int fla
 int fy_document_builder_diag(struct fy_document_builder *fydb, unsigned int flags,
 			     const char *file, int line, const char *func,
 			     const char *fmt, ...)
-			__attribute__((format(printf, 6, 7)));
+			FY_FORMAT(printf, 6, 7);
 
 void fy_document_builder_diag_vreport(struct fy_document_builder *fydb,
 				      const struct fy_diag_report_ctx *fydrc,
@@ -610,7 +610,7 @@ void fy_document_builder_diag_vreport(struct fy_document_builder *fydb,
 void fy_document_builder_diag_report(struct fy_document_builder *fydb,
 				     const struct fy_diag_report_ctx *fydrc,
 				     const char *fmt, ...)
-				__attribute__((format(printf, 3, 4)));
+				FY_FORMAT(printf, 3, 4);
 
 #ifdef FY_DEVMODE
 
@@ -687,47 +687,5 @@ void fy_document_builder_diag_report(struct fy_document_builder *fydb,
 
 #define FYDB_TOKEN_WARNING(_fydb, _fyt, _module, _fmt, ...) \
 	FYDB_TOKEN_DIAG(_fydb, _fyt, FYET_WARNING, _module, _fmt, ## __VA_ARGS__)
-
-/* alloca formatted print methods */
-#define alloca_vsprintf(_fmt, _ap) \
-	({ \
-		const char *__fmt = (_fmt); \
-		va_list _ap_orig; \
-		int _size; \
-		int _sizew __FY_DEBUG_UNUSED__; \
-		char *_buf = NULL, *_s; \
-		\
-		va_copy(_ap_orig, (_ap)); \
-		_size = vsnprintf(NULL, 0, __fmt, _ap_orig); \
-		va_end(_ap_orig); \
-		if (_size != -1) { \
-			_buf = alloca(_size + 1); \
-			_sizew = vsnprintf(_buf, _size + 1, __fmt, _ap); \
-			assert(_size == _sizew); \
-			_s = _buf + strlen(_buf); \
-			while (_s > _buf && _s[-1] == '\n') \
-				*--_s = '\0'; \
-		} \
-		_buf; \
-	})
-
-#define alloca_sprintf(_fmt, ...) \
-	({ \
-		const char *__fmt = (_fmt); \
-		int _size; \
-		int _sizew __FY_DEBUG_UNUSED__; \
-		char *_buf = NULL, *_s; \
-		\
-		_size = snprintf(NULL, 0, __fmt, ## __VA_ARGS__); \
-		if (_size != -1) { \
-			_buf = alloca(_size + 1); \
-			_sizew = snprintf(_buf, _size + 1, __fmt, __VA_ARGS__); \
-			assert(_size == _sizew); \
-			_s = _buf + strlen(_buf); \
-			while (_s > _buf && _s[-1] == '\n') \
-				*--_s = '\0'; \
-		} \
-		_buf; \
-	})
 
 #endif
